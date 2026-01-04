@@ -3,7 +3,7 @@ from langchain_community.document_loaders import (
     WebBaseLoader
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama.embeddings import OllamaEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_astradb.vectorstores import AstraDBVectorStore
 from dotenv import load_dotenv
 
@@ -40,8 +40,9 @@ chunks = splitter.split_documents(all_docs)
 # ------------------------
 # Vector Store
 # ------------------------
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
-
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
 vector_store = AstraDBVectorStore(
     embedding=embeddings,
     collection_name="rag_chunks",
