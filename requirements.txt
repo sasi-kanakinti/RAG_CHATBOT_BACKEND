@@ -1,0 +1,16 @@
+langchain
+langchain-community
+langchain-core
+sentence-transformers
+faiss-cpu
+python-dotenv
+pypdf
+langchain-groq
+bs4
+astrapy
+cassio
+langchain-astradb
+langchain-community
+wikipedia
+fastapi
+uvicorn
