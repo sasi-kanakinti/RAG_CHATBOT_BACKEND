@@ -1,6 +1,8 @@
+import os
 from dotenv import load_dotenv
+
 from langchain_astradb import AstraDBVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceInferenceEmbeddings
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.docstore.document import Document
@@ -18,14 +20,14 @@ _llm = None
 _wiki = None
 
 # ==============================
-# Initializers (SAFE)
+# Initializers (SAFE for Railway)
 # ==============================
 def get_embeddings():
     global _embeddings
     if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(
+        _embeddings = HuggingFaceInferenceEmbeddings(
+            api_key=os.environ["HF_API_KEY"],
             model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={"device": "cpu"},
         )
     return _embeddings
 

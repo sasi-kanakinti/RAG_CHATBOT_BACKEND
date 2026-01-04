@@ -6,15 +6,12 @@ langchain
 langchain-core
 langchain-community
 langchain-huggingface
+langchain-groq
+langchain-astradb
 
 astrapy
 cassio
-langchain-astradb
-
 faiss-cpu
 pypdf
 bs4
 wikipedia
-
-langchain-groq
-sentence-transformers

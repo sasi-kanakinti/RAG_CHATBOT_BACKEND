@@ -1,11 +1,13 @@
+import os
+from dotenv import load_dotenv
+
 from langchain_community.document_loaders import (
     PyPDFDirectoryLoader,
     WebBaseLoader
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceInferenceEmbeddings
 from langchain_astradb.vectorstores import AstraDBVectorStore
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -13,6 +15,7 @@ load_dotenv()
 # Load Documents
 # ------------------------
 pdf_docs = PyPDFDirectoryLoader("data").load()
+
 web_docs = WebBaseLoader(
     web_paths=[
         "https://example.com",
@@ -38,11 +41,13 @@ splitter = RecursiveCharacterTextSplitter(
 chunks = splitter.split_documents(all_docs)
 
 # ------------------------
-# Vector Store
+# Vector Store (HF API)
 # ------------------------
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
+embeddings = HuggingFaceInferenceEmbeddings(
+    api_key=os.environ["HF_API_KEY"],
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
 )
+
 vector_store = AstraDBVectorStore(
     embedding=embeddings,
     collection_name="rag_chunks",
