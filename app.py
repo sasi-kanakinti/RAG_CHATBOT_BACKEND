@@ -1,4 +1,3 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,14 +11,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# ✅ IMPORTANT: Allow Vercel + local dev
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://*.vercel.app",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],  # allow Vercel + local
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -31,10 +25,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
     answer = run_chatbot(
@@ -42,3 +32,7 @@ def chat_endpoint(request: ChatRequest):
         history=request.history
     )
     return ChatResponse(response=answer)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
