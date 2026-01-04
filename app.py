@@ -13,8 +13,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],  # allow Vercel + local
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,3 +32,7 @@ def chat_endpoint(request: ChatRequest):
         history=request.history
     )
     return ChatResponse(response=answer)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

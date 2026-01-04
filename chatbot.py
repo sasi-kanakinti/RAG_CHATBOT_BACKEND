@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from langchain_astradb import AstraDBVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
@@ -5,55 +6,61 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.docstore.document import Document
 from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
-from dotenv import load_dotenv
 
 load_dotenv()
 
-# ------------------------
-# Embeddings & Vector DB
-# ------------------------
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+# ==============================
+# Lazy-loaded globals
+# ==============================
+_embeddings = None
+_vector_store = None
+_llm = None
+_wiki = None
 
-vector_store = AstraDBVectorStore(
-    embedding=embeddings,
-    collection_name="rag_chunks",
-)
-
-def hybrid_ret(query: str):
-    return vector_store.similarity_search(query, k=4, search_type="hybrid")
-
-# ------------------------
-# Wikipedia Retriever
-# ------------------------
-wiki = WikipediaQueryRun(
-    api_wrapper=WikipediaAPIWrapper(
-        top_k_results=2,
-        max_summary_chars=1500,
-    )
-)
-
-def wiki_ret(query: str):
-    text = wiki.run(query)
-    return [
-        Document(
-            page_content=text,
-            metadata={"source": "wikipedia"}
+# ==============================
+# Initializers (SAFE)
+# ==============================
+def get_embeddings():
+    global _embeddings
+    if _embeddings is None:
+        _embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_kwargs={"device": "cpu"},
         )
-    ]
+    return _embeddings
 
-# ------------------------
-# LLM
-# ------------------------
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    temperature=0,
-)
+def get_vector_store():
+    global _vector_store
+    if _vector_store is None:
+        _vector_store = AstraDBVectorStore(
+            embedding=get_embeddings(),
+            collection_name="rag_chunks",
+        )
+    return _vector_store
 
-# ------------------------
+def get_llm():
+    global _llm
+    if _llm is None:
+        _llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            temperature=0,
+        )
+    return _llm
+
+def get_wiki():
+    global _wiki
+    if _wiki is None:
+        _wiki = WikipediaQueryRun(
+            api_wrapper=WikipediaAPIWrapper(
+                top_k_results=2,
+                max_summary_chars=1500,
+            )
+        )
+    return _wiki
+
+# ==============================
 # Prompts
-# ------------------------
+# ==============================
 RAG_PROMPT = ChatPromptTemplate.from_template(
 """
 You are a factual assistant.
@@ -122,9 +129,9 @@ Standalone question:
 """
 )
 
-# ------------------------
+# ==============================
 # Helpers
-# ------------------------
+# ==============================
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
@@ -138,6 +145,7 @@ def condense_query(query, history_text):
     if not history_text:
         return query
 
+    llm = get_llm()
     condensed = llm.invoke(
         CONDENSE_PROMPT.format(
             history=history_text,
@@ -146,12 +154,15 @@ def condense_query(query, history_text):
     )
     return condensed.content.strip()
 
-# ------------------------
+# ==============================
 # Answer Paths
-# ------------------------
+# ==============================
 def rag_answer(query, history_text):
+    retriever = get_vector_store()
+    llm = get_llm()
+
     standalone = condense_query(query, history_text)
-    docs = hybrid_ret(standalone)
+    docs = retriever.similarity_search(standalone, k=4)
     context = format_docs(docs)
 
     resp = llm.invoke(
@@ -164,8 +175,13 @@ def rag_answer(query, history_text):
     return resp.content.strip()
 
 def wiki_answer(query, history_text):
+    wiki = get_wiki()
+    llm = get_llm()
+
     standalone = condense_query(query, history_text)
-    docs = wiki_ret(standalone)
+    text = wiki.run(standalone)
+
+    docs = [Document(page_content=text)]
     context = format_docs(docs)
 
     resp = llm.invoke(
@@ -178,6 +194,7 @@ def wiki_answer(query, history_text):
     return resp.content.strip()
 
 def general_answer(query, history_text):
+    llm = get_llm()
     resp = llm.invoke(
         GENERAL_PROMPT.format(
             history=history_text,
@@ -186,9 +203,9 @@ def general_answer(query, history_text):
     )
     return resp.content.strip()
 
-# ------------------------
+# ==============================
 # Router
-# ------------------------
+# ==============================
 def run_chatbot(query: str, history: list) -> str:
     history_text = format_history(history)
 
